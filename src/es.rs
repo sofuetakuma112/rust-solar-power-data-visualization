@@ -164,7 +164,7 @@ fn create_doc(dt: DateTime<Local>, q: f64) -> Document {
     }
 }
 
-fn doc_to_dt(v: &mut Document) -> DateTime<Local> {
+fn doc_to_dt(v: &Document) -> DateTime<Local> {
     isoformat_to_dt(&v.source.jptime)
 }
 
@@ -185,6 +185,7 @@ pub fn load_q_and_dt_for_period(
     let mut is_first_loop = true;
 
     for _ in 0..(span.ceil() as i64) {
+        // 対象の日時のJSONファイルがなければ取得する
         fetch_docs_by_datetime(&dt_crr_fetching).unwrap();
 
         let file_path = filepath::get_json_file_path_by_datetime(&dt_crr_fetching).unwrap();
@@ -201,11 +202,8 @@ pub fn load_q_and_dt_for_period(
         // JPtimeの昇順にソート
         let sort_start = std::time::Instant::now();
         docs.sort_by(|a, b| {
-            let a_jp_time = &a.source.jptime;
-            let a_jp_time: DateTime<Local> = isoformat_to_dt(a_jp_time);
-
-            let b_jp_time = &b.source.jptime;
-            let b_jp_time: DateTime<Local> = isoformat_to_dt(b_jp_time);
+            let a_jp_time: DateTime<Local> = isoformat_to_dt(&a.source.jptime);
+            let b_jp_time: DateTime<Local> = isoformat_to_dt(&b.source.jptime);
 
             let duration: Duration = b_jp_time - a_jp_time;
             if duration.num_milliseconds() > 0 {
@@ -223,10 +221,16 @@ pub fn load_q_and_dt_for_period(
             sort_end.subsec_nanos() / 1_000_000
         );
 
-        let year = dt_crr_fetching.year();
-        let month = dt_crr_fetching.month();
-        let day = dt_crr_fetching.day();
-        let date = Local.with_ymd_and_hms(year, month, day, 0, 0, 0).unwrap();
+        let date = Local
+            .with_ymd_and_hms(
+                dt_crr_fetching.year(),
+                dt_crr_fetching.month(),
+                dt_crr_fetching.day(),
+                0,
+                0,
+                0,
+            )
+            .unwrap();
 
         // 欠損値を保管する処理
         if docs.len() == 0 {
@@ -266,19 +270,18 @@ pub fn load_q_and_dt_for_period(
             }
 
             if docs_from_start_to_first.len() > 0 {
-                println!("left 0: {}", doc_to_dt(&mut docs_from_start_to_first[0]));
-
-                let len = docs_from_start_to_first.len();
+                println!(
+                    "left 0: {}",
+                    doc_to_dt(docs_from_start_to_first.first().unwrap())
+                );
                 println!(
                     "left -1: {}",
-                    doc_to_dt(&mut docs_from_start_to_first[len - 1])
+                    doc_to_dt(docs_from_start_to_first.last().unwrap())
                 );
             }
 
-            println!("middle 0: {}", doc_to_dt(&mut docs[0]));
-
-            let len = docs.len();
-            println!("middle -1: {}", doc_to_dt(&mut docs[len - 1]));
+            println!("middle 0: {}", doc_to_dt(docs.first().unwrap()));
+            println!("middle -1: {}", doc_to_dt(docs.last().unwrap()));
 
             // 2. first_dt ~ last_dt間を保管するdocsを生成
             let diff_seconds_from_last_to_end = (end_dt - last_dt).num_seconds();
@@ -298,12 +301,13 @@ pub fn load_q_and_dt_for_period(
             }
 
             if docs_from_last_to_end.len() > 0 {
-                println!("right 0: {}", doc_to_dt(&mut docs_from_last_to_end[0]));
-
-                let len = docs_from_last_to_end.len();
+                println!(
+                    "right 0: {}",
+                    doc_to_dt(&docs_from_last_to_end.first().unwrap())
+                );
                 println!(
                     "right -1: {}",
-                    doc_to_dt(&mut docs_from_last_to_end[len - 1])
+                    doc_to_dt(&docs_from_last_to_end.last().unwrap())
                 );
             }
 
@@ -313,10 +317,8 @@ pub fn load_q_and_dt_for_period(
 
             docs = docs_from_start_to_first;
 
-            println!("doc_to_dt(docs[0]): {}", doc_to_dt(&mut docs[0]));
-
-            let len = docs.len();
-            println!("doc_to_dt(docs[0]): {}", doc_to_dt(&mut docs[len - 1]));
+            println!("doc_to_dt(docs[0]): {}", doc_to_dt(docs.first().unwrap()));
+            println!("doc_to_dt(docs[0]): {}", doc_to_dt(docs.last().unwrap()));
             println!(
                 "diff_seconds_from_last_to_end: {}",
                 diff_seconds_from_last_to_end
