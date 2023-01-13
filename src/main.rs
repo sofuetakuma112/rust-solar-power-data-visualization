@@ -1,5 +1,6 @@
 mod es;
 mod filepath;
+mod q;
 
 use es::load_q_and_dt_for_period;
 use plotters::prelude::*;
@@ -11,11 +12,14 @@ fn main() {
     // es::fetch_docs_by_datetime(dt_ref);
     let (dt_all, q_all) = load_q_and_dt_for_period(dt_ref, 1.0);
 
-    /* x軸とy軸で個別のVector型にする */
-    // x軸 : 日付のVector
-    // y軸: 値のVector
+    let calced_q = q::calc_q(&Local.with_ymd_and_hms(2022, 5, 17, 17, 53, 0).unwrap(), 33.82794, 132.75093);
+    println!("calced_q: {}", calced_q);
+    let calced_q = q::calc_q_kw(&Local.with_ymd_and_hms(2022, 5, 17, 17, 53, 0).unwrap(), 33.82794, 132.75093);
+    println!("calced_q: {}", calced_q);
+    let calced_q = q::calc_q_kw(&Local.with_ymd_and_hms(2022, 5, 17, 0, 0, 0).unwrap(), 33.82794, 132.75093);
+    println!("calced_q: {}", calced_q);
 
-    /* (2) 描画先の情報を設定 */
+    /* (1) 描画先の情報を設定 */
     let image_width = 1080;
     let image_height = 720;
     // 描画先を指定。画像出力する場合はBitMapBackend
@@ -25,11 +29,10 @@ fn main() {
     // 背景を白にする
     root.fill(&WHITE).unwrap();
 
-    /* (3) グラフ全般の設定 */
+    /* (2) グラフ全般の設定 */
     /* y軸の最大最小値を算出
     f32型はNaNが定義されていてys.iter().max()等が使えないので工夫が必要
-    参考サイト
-    https://qiita.com/lo48576/items/343ca40a03c3b86b67cb */
+    */
     let (y_min, y_max) = q_all
         .iter()
         .fold((0.0 / 0.0, 0.0 / 0.0), |(m, n), v| (v.min(m), v.max(n)));
@@ -49,7 +52,7 @@ fn main() {
         )
         .unwrap();
 
-    /* (4) グラフの描画 */
+    /* (3) グラフの描画 */
 
     // x軸y軸、グリッド線などを描画
     chart.configure_mesh().draw().unwrap();
