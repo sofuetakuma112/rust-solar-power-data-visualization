@@ -15,55 +15,6 @@ use std::{cmp::Ordering, env, io::Write};
 use dotenv::dotenv;
 
 use crate::filepath;
-use serde::Deserialize;
-// #[derive(Deserialize, Debug)]
-// struct Document {
-//     _id: String,
-//     _index: String,
-//     _score: f64,
-//     _source: DocumentSource,
-//     _type: String,
-// }
-
-// struct DocumentSource {
-//     JPtime: String,
-//     NO_0: String,
-//         NO_1: String,
-//         NO_16: String,
-//         NO_18: String,
-//         NO_2: String,
-//         NO_20: String,
-//         NO_21: String,
-//         NO_25: String,
-//         NO_26: String,
-//         NO_3: String,
-//         NO_30: String,
-//         NO_31: String,
-//         NO_32: String,
-//         NO_4: String,
-//         NO_5: String,
-//         NO_6: String,
-//         NO_7: String,
-//         "ac-i(A)": f64,
-//         "ac-pw(kw)": f64,
-//         "ac-v(V)": f64,
-//         "airTemperature(℃)": f64,
-//         "co2_reduction(kg-CO2)": f64,
-//         "dc-i(A)": f64,
-//         "dc-pw(kw)": f64,
-//         "dc-v(V)": f64,
-//         "frequency(Hz)": f64,
-//         "oil_conversion_amount(L)": f64,
-//         "remaining storage battery capacity(%)": f64,
-//         "single_unit_integrated_power_generation(kwh)": f64,
-//         "solarIrradiance(kw/m^2)": f64,
-//         "solar_cell_current(A)": f64,
-//         "solar_cell_power(kw)": f64,
-//         "solar_cell_voltage(V)": f64,
-//         "total_ac_power(kw)": f64,
-//         "total_unit_integrated_power_generation(kwh)": f64,
-//         utctime: String,
-// }
 
 const ISO_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S.%f";
 
