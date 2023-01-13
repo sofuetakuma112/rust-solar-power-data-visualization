@@ -81,19 +81,24 @@ fn create_doc_json(dt: DateTime<Local>, q: f64) -> Value {
     })
 }
 
-pub fn load_q_and_dt_for_period(start_dt: &DateTime<Local>, span: f64) {
-    // let mut q_all = Vec::new();
-    // let mut dt_all = Vec::new();
-    let mut dt_crr_fetching = start_dt;
+pub fn load_q_and_dt_for_period(
+    start_dt: &DateTime<Local>,
+    span: f64,
+) -> (Vec<DateTime<Local>>, Vec<f64>) {
+    let mut q_all = Vec::new();
+    let mut dt_all = Vec::new();
+    let mut dt_crr_fetching = start_dt.clone();
 
     let separated_span = float_extras::f64::modf(span);
     let span_float = separated_span.0;
     let span_int = separated_span.1;
 
+    let mut is_first_loop = true;
+
     for _ in 0..(span.ceil() as i64) {
         fetch_docs_by_datetime(&dt_crr_fetching).unwrap();
 
-        let file_path = filepath::get_json_file_path_by_datetime(dt_crr_fetching).unwrap();
+        let file_path = filepath::get_json_file_path_by_datetime(&dt_crr_fetching).unwrap();
         if !std::path::Path::new(&file_path).exists() {
             panic!("JSONファイルが存在しない")
         }
@@ -101,6 +106,7 @@ pub fn load_q_and_dt_for_period(start_dt: &DateTime<Local>, span: f64) {
         let json_str = std::fs::read_to_string(file_path).unwrap();
         let mut docs = serde_json::from_str::<Value>(&json_str).unwrap();
 
+        // JPtimeの昇順にソート
         docs.as_array_mut().unwrap().sort_by(|a, b| {
             let a_jp_time = a["_source"]["JPtime"].as_str().unwrap();
             let a_jp_time: DateTime<Local> = isoformat_to_dt(a_jp_time);
@@ -123,12 +129,11 @@ pub fn load_q_and_dt_for_period(start_dt: &DateTime<Local>, span: f64) {
         let day = dt_crr_fetching.day();
         let date = Local.with_ymd_and_hms(year, month, day, 0, 0, 0).unwrap();
 
+        // 欠損値を保管する処理
         if docs.as_array().unwrap().len() == 0 {
             docs = json!((0..86400)
-                .collect::<Vec<i64>>()
-                .iter()
                 .map(|second_diff_from_day_begin| {
-                    create_doc_json(date + Duration::seconds(*second_diff_from_day_begin), 0.0)
+                    create_doc_json(date + Duration::seconds(second_diff_from_day_begin), 0.0)
                 })
                 .collect::<Vec<Value>>());
         } else {
@@ -145,23 +150,92 @@ pub fn load_q_and_dt_for_period(start_dt: &DateTime<Local>, span: f64) {
                 .unwrap();
 
             // 1. start_dt ~ first_dt間を保管するdocsを生成
-            let left_docs: Vec<Value>;
+            let mut docs_from_start_to_first = Vec::new();
             let diff_seconds_from_start = (end_dt - start_dt).num_seconds();
             if diff_seconds_from_start != 0 {
-                left_docs = (0..diff_seconds_from_start)
-                    .collect::<Vec<i64>>()
-                    .iter()
+                docs_from_start_to_first = (0..diff_seconds_from_start)
                     .map(|second_diff_from_day_begin| {
-                        create_doc_json(date + Duration::seconds(*second_diff_from_day_begin), 0.0)
+                        create_doc_json(date + Duration::seconds(second_diff_from_day_begin), 0.0)
                     })
                     .collect::<Vec<Value>>();
             }
 
             // 2. first_dt ~ last_dt間を保管するdocsを生成
             let diff_seconds_from_last_to_end = (end_dt - last_dt).num_seconds();
-            
+            let offset = (last_dt
+                - Local
+                    .with_ymd_and_hms(last_dt.year(), last_dt.month(), last_dt.day(), 0, 0, 0)
+                    .unwrap())
+            .num_seconds();
+            let mut docs_from_last_to_end = Vec::new();
+            if offset != offset + diff_seconds_from_last_to_end {
+                docs_from_last_to_end = ((offset + 1)
+                    ..(offset + diff_seconds_from_last_to_end + 1)) // FIXME: +1しなくても良い方を探す
+                    .map(|second_from_start| {
+                        create_doc_json(date + Duration::seconds(second_from_start), 0.0)
+                    })
+                    .collect::<Vec<Value>>();
+            }
+
+            // 補完用に生成したdocsをマージする
+            docs_from_start_to_first.append(docs.as_array_mut().unwrap());
+            docs_from_start_to_first.append(&mut docs_from_last_to_end);
+
+            // FIXME: メモリ効率悪そうなので直す
+            docs = json!(docs_from_start_to_first);
         }
+
+        let mut dts_per_day = docs
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|doc| isoformat_to_dt(doc["_source"]["JPtime"].as_str().unwrap()))
+            .collect::<Vec<DateTime<chrono::Local>>>();
+
+        let mut last_dt = Local.with_ymd_and_hms(2400, 1, 1, 0, 0, 0).unwrap();
+        if is_first_loop {
+            last_dt = dts_per_day[0]
+                + Duration::days(span_int as i64)
+                + Duration::hours((span_float * 24.0) as i64);
+            is_first_loop = false;
+        }
+        let mut qs_per_day = docs
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|doc| doc["_source"]["solarIrradiance(kw/m^2)"].as_f64().unwrap())
+            .collect::<Vec<f64>>();
+
+        let mut has_reached_end = false;
+        for dt in dts_per_day.iter() {
+            if *dt > last_dt {
+                has_reached_end = true;
+            }
+        }
+        if has_reached_end {
+            // last_dt以下だけ抽出してdt_all, q_allにマージする
+            let mask = dts_per_day
+                .iter()
+                .map(|dt| *dt <= last_dt)
+                .collect::<Vec<bool>>();
+
+            let mut mask_iter = mask.iter();
+            dts_per_day.retain(|_| *mask_iter.next().unwrap());
+            let mut mask_iter = mask.iter();
+            qs_per_day.retain(|_| *mask_iter.next().unwrap());
+
+            dt_all.append(&mut dts_per_day);
+            q_all.append(&mut qs_per_day);
+            break;
+        }
+
+        dt_all.append(&mut dts_per_day);
+        q_all.append(&mut qs_per_day);
+
+        dt_crr_fetching = dt_crr_fetching + Duration::days(1);
     }
+
+    return (dt_all, q_all);
 }
 
 #[tokio::main]
