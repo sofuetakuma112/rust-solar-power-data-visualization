@@ -199,6 +199,7 @@ pub fn load_q_and_dt_for_period(
         println!("docs.len(): {}", docs.len());
 
         // JPtimeの昇順にソート
+        let sort_start = std::time::Instant::now();
         docs.sort_by(|a, b| {
             let a_jp_time = &a.source.jptime;
             let a_jp_time: DateTime<Local> = isoformat_to_dt(a_jp_time);
@@ -215,6 +216,12 @@ pub fn load_q_and_dt_for_period(
                 Ordering::Greater
             }
         });
+        let sort_end = sort_start.elapsed();
+        println!(
+            "ソート: {}.{:03}秒",
+            sort_end.as_secs(),
+            sort_end.subsec_nanos() / 1_000_000
+        );
 
         let year = dt_crr_fetching.year();
         let month = dt_crr_fetching.month();
