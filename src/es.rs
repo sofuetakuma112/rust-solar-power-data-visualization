@@ -9,12 +9,104 @@ use elasticsearch::{
 };
 
 use float_extras::f64;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::{cmp::Ordering, env, io::Write};
 
 use dotenv::dotenv;
 
 use crate::filepath;
+
+#[derive(Serialize, Deserialize, Debug)]
+struct Document {
+    #[serde(rename = "_id")]
+    id: String,
+    #[serde(rename = "_index")]
+    index: String,
+    #[serde(rename = "_score")]
+    score: f64,
+    #[serde(rename = "_source")]
+    source: DocumentSource,
+    #[serde(rename = "_type")]
+    r#type: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+struct DocumentSource {
+    #[serde(rename = "JPtime")]
+    jptime: String,
+    #[serde(rename = "NO_0")]
+    no_0: String,
+    #[serde(rename = "NO_1")]
+    no_1: String,
+    #[serde(rename = "NO_2")]
+    no_2: String,
+    #[serde(rename = "NO_3")]
+    no_3: String,
+    #[serde(rename = "NO_4")]
+    no_4: String,
+    #[serde(rename = "NO_5")]
+    no_5: String,
+    #[serde(rename = "NO_6")]
+    no_6: String,
+    #[serde(rename = "NO_7")]
+    no_7: String,
+    #[serde(rename = "NO_16")]
+    no_16: String,
+    #[serde(rename = "NO_18")]
+    no_18: String,
+    #[serde(rename = "NO_20")]
+    no_20: String,
+    #[serde(rename = "NO_21")]
+    no_21: String,
+    #[serde(rename = "NO_25")]
+    no_25: String,
+    #[serde(rename = "NO_26")]
+    no_26: String,
+    #[serde(rename = "NO_30")]
+    no_30: String,
+    #[serde(rename = "NO_31")]
+    no_31: String,
+    #[serde(rename = "NO_32")]
+    no_32: String,
+    #[serde(rename = "ac-i(A)")]
+    ac_i: f64,
+    #[serde(rename = "ac-pw(kw)")]
+    ac_pw: f64,
+    #[serde(rename = "ac-v(V)")]
+    ac_v: f64,
+    #[serde(rename = "airTemperature(℃)")]
+    air_temperature: f64,
+    #[serde(rename = "co2_reduction(kg-CO2)")]
+    co2_reduction: f64,
+    #[serde(rename = "dc-i(A)")]
+    dc_i: f64,
+    #[serde(rename = "dc-pw(kw)")]
+    dc_pw: f64,
+    #[serde(rename = "dc-v(V)")]
+    dc_v: f64,
+    #[serde(rename = "frequency(Hz)")]
+    frequency: f64,
+    #[serde(rename = "oil_conversion_amount(L)")]
+    oil_conversion_amount: f64,
+    #[serde(rename = "remaining storage battery capacity(%)")]
+    remaining_storage_battery_capacity: f64,
+    #[serde(rename = "single_unit_integrated_power_generation(kwh)")]
+    single_unit_integrated_power_generation: f64,
+    #[serde(rename = "solarIrradiance(kw/m^2)")]
+    solar_irradiance: f64,
+    #[serde(rename = "solar_cell_current(A)")]
+    solar_cell_current: f64,
+    #[serde(rename = "solar_cell_power(kw)")]
+    solar_cell_power: f64,
+    #[serde(rename = "solar_cell_voltage(V)")]
+    solar_cell_voltage: f64,
+    #[serde(rename = "total_ac_power(kw)")]
+    total_ac_power: f64,
+    #[serde(rename = "total_unit_integrated_power_generation(kwh)")]
+    total_unit_integrated_power_generation: f64,
+    utctime: String,
+}
 
 const ISO_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S.%f";
 
@@ -23,19 +115,65 @@ fn isoformat_to_dt(dt_str: &str) -> DateTime<chrono::Local> {
     Local.from_local_datetime(&dt).unwrap()
 }
 
-fn create_doc_json(dt: DateTime<Local>, q: f64) -> Value {
-    json!({
-        "_source": {
-            "JPtime": dt.format(ISO_DATE_FORMAT).to_string(),
-            "solarIrradiance(kw/m^2)": q
-        }
-    })
+fn create_doc(dt: DateTime<Local>, q: f64) -> Document {
+    Document {
+        id: String::from(""),
+        index: String::from(""),
+        score: 0.0,
+        source: DocumentSource {
+            jptime: dt.format(ISO_DATE_FORMAT).to_string(),
+            solar_irradiance: q,
+            // 以下初期値
+            no_0: String::from(""),
+            no_1: String::from(""),
+            no_2: String::from(""),
+            no_3: String::from(""),
+            no_4: String::from(""),
+            no_5: String::from(""),
+            no_6: String::from(""),
+            no_7: String::from(""),
+            no_16: String::from(""),
+            no_18: String::from(""),
+            no_20: String::from(""),
+            no_21: String::from(""),
+            no_25: String::from(""),
+            no_26: String::from(""),
+            no_30: String::from(""),
+            no_31: String::from(""),
+            no_32: String::from(""),
+            ac_i: 0.0,
+            ac_pw: 0.0,
+            ac_v: 0.0,
+            air_temperature: 0.0,
+            co2_reduction: 0.0,
+            dc_i: 0.0,
+            dc_pw: 0.0,
+            dc_v: 0.0,
+            frequency: 0.0,
+            oil_conversion_amount: 0.0,
+            remaining_storage_battery_capacity: 0.0,
+            single_unit_integrated_power_generation: 0.0,
+            solar_cell_current: 0.0,
+            solar_cell_power: 0.0,
+            solar_cell_voltage: 0.0,
+            total_ac_power: 0.0,
+            total_unit_integrated_power_generation: 0.0,
+            utctime: String::from(""),
+        },
+        r#type: String::from(""),
+    }
+}
+
+fn doc_to_dt(v: &mut Document) -> DateTime<Local> {
+    isoformat_to_dt(&v.source.jptime)
 }
 
 pub fn load_q_and_dt_for_period(
     start_dt: &DateTime<Local>,
     span: f64,
 ) -> (Vec<DateTime<Local>>, Vec<f64>) {
+    let start = std::time::Instant::now();
+
     let mut q_all = Vec::new();
     let mut dt_all = Vec::new();
     let mut dt_crr_fetching = start_dt.clone();
@@ -55,14 +193,17 @@ pub fn load_q_and_dt_for_period(
         }
 
         let json_str = std::fs::read_to_string(file_path).unwrap();
-        let mut docs = serde_json::from_str::<Value>(&json_str).unwrap();
+
+        let mut docs = serde_json::from_str::<Vec<Document>>(&json_str).unwrap();
+
+        println!("docs.len(): {}", docs.len());
 
         // JPtimeの昇順にソート
-        docs.as_array_mut().unwrap().sort_by(|a, b| {
-            let a_jp_time = a["_source"]["JPtime"].as_str().unwrap();
+        docs.sort_by(|a, b| {
+            let a_jp_time = &a.source.jptime;
             let a_jp_time: DateTime<Local> = isoformat_to_dt(a_jp_time);
 
-            let b_jp_time = b["_source"]["JPtime"].as_str().unwrap();
+            let b_jp_time = &b.source.jptime;
             let b_jp_time: DateTime<Local> = isoformat_to_dt(b_jp_time);
 
             let duration: Duration = b_jp_time - a_jp_time;
@@ -81,35 +222,56 @@ pub fn load_q_and_dt_for_period(
         let date = Local.with_ymd_and_hms(year, month, day, 0, 0, 0).unwrap();
 
         // 欠損値を保管する処理
-        if docs.as_array().unwrap().len() == 0 {
-            docs = json!((0..86400)
+        if docs.len() == 0 {
+            docs = (0..86400)
                 .map(|second_diff_from_day_begin| {
-                    create_doc_json(date + Duration::seconds(second_diff_from_day_begin), 0.0)
+                    create_doc(date + Duration::seconds(second_diff_from_day_begin), 0.0)
                 })
-                .collect::<Vec<Value>>());
+                .collect::<Vec<Document>>();
         } else {
-            let docs_vec = docs.as_array().unwrap();
-
             // start_dt <= first_dt <= last_dt <= end_dt
-            let first_dt = isoformat_to_dt(docs_vec[0]["_source"]["JPtime"].as_str().unwrap());
-            let last_dt = isoformat_to_dt(docs_vec[1]["_source"]["JPtime"].as_str().unwrap());
+            let first_dt = isoformat_to_dt(&docs[0].source.jptime);
+            let last_dt = isoformat_to_dt(&docs[docs.len() - 1].source.jptime);
             let start_dt = Local
                 .with_ymd_and_hms(first_dt.year(), first_dt.month(), first_dt.day(), 0, 0, 0)
                 .unwrap();
             let end_dt = Local
-                .with_ymd_and_hms(last_dt.year(), last_dt.month(), last_dt.day(), 0, 0, 0)
+                .with_ymd_and_hms(last_dt.year(), last_dt.month(), last_dt.day() + 1, 0, 0, 0)
                 .unwrap();
+
+            println!("first_dt: {}", first_dt);
+            println!("last_dt: {}", last_dt);
+            println!("start_dt: {}", start_dt);
+            println!("end_dt: {}", end_dt);
 
             // 1. start_dt ~ first_dt間を保管するdocsを生成
             let mut docs_from_start_to_first = Vec::new();
-            let diff_seconds_from_start = (end_dt - start_dt).num_seconds();
+            let diff_seconds_from_start = (first_dt - start_dt).num_seconds();
+
+            println!("diff_seconds_from_start: {}", diff_seconds_from_start);
+
             if diff_seconds_from_start != 0 {
                 docs_from_start_to_first = (0..diff_seconds_from_start)
                     .map(|second_diff_from_day_begin| {
-                        create_doc_json(date + Duration::seconds(second_diff_from_day_begin), 0.0)
+                        create_doc(date + Duration::seconds(second_diff_from_day_begin), 0.0)
                     })
-                    .collect::<Vec<Value>>();
+                    .collect::<Vec<Document>>();
             }
+
+            if docs_from_start_to_first.len() > 0 {
+                println!("left 0: {}", doc_to_dt(&mut docs_from_start_to_first[0]));
+
+                let len = docs_from_start_to_first.len();
+                println!(
+                    "left -1: {}",
+                    doc_to_dt(&mut docs_from_start_to_first[len - 1])
+                );
+            }
+
+            println!("middle 0: {}", doc_to_dt(&mut docs[0]));
+
+            let len = docs.len();
+            println!("middle -1: {}", doc_to_dt(&mut docs[len - 1]));
 
             // 2. first_dt ~ last_dt間を保管するdocsを生成
             let diff_seconds_from_last_to_end = (end_dt - last_dt).num_seconds();
@@ -123,24 +285,41 @@ pub fn load_q_and_dt_for_period(
                 docs_from_last_to_end = ((offset + 1)
                     ..(offset + diff_seconds_from_last_to_end + 1)) // FIXME: +1しなくても良い方を探す
                     .map(|second_from_start| {
-                        create_doc_json(date + Duration::seconds(second_from_start), 0.0)
+                        create_doc(date + Duration::seconds(second_from_start), 0.0)
                     })
-                    .collect::<Vec<Value>>();
+                    .collect::<Vec<Document>>();
+            }
+
+            if docs_from_last_to_end.len() > 0 {
+                println!("right 0: {}", doc_to_dt(&mut docs_from_last_to_end[0]));
+
+                let len = docs_from_last_to_end.len();
+                println!(
+                    "right -1: {}",
+                    doc_to_dt(&mut docs_from_last_to_end[len - 1])
+                );
             }
 
             // 補完用に生成したdocsをマージする
-            docs_from_start_to_first.append(docs.as_array_mut().unwrap());
+            docs_from_start_to_first.append(&mut docs);
             docs_from_start_to_first.append(&mut docs_from_last_to_end);
 
-            // FIXME: メモリ効率悪そうなので直す
-            docs = json!(docs_from_start_to_first);
+            docs = docs_from_start_to_first;
+
+            println!("doc_to_dt(docs[0]): {}", doc_to_dt(&mut docs[0]));
+
+            let len = docs.len();
+            println!("doc_to_dt(docs[0]): {}", doc_to_dt(&mut docs[len - 1]));
+            println!(
+                "diff_seconds_from_last_to_end: {}",
+                diff_seconds_from_last_to_end
+            );
+            println!("offset: {}\n", offset);
         }
 
         let mut dts_per_day = docs
-            .as_array()
-            .unwrap()
             .iter()
-            .map(|doc| isoformat_to_dt(doc["_source"]["JPtime"].as_str().unwrap()))
+            .map(|doc| isoformat_to_dt(&doc.source.jptime))
             .collect::<Vec<DateTime<chrono::Local>>>();
 
         let mut last_dt = Local.with_ymd_and_hms(2400, 1, 1, 0, 0, 0).unwrap();
@@ -151,10 +330,8 @@ pub fn load_q_and_dt_for_period(
             is_first_loop = false;
         }
         let mut qs_per_day = docs
-            .as_array()
-            .unwrap()
             .iter()
-            .map(|doc| doc["_source"]["solarIrradiance(kw/m^2)"].as_f64().unwrap())
+            .map(|doc| doc.source.solar_irradiance)
             .collect::<Vec<f64>>();
 
         let mut has_reached_end = false;
@@ -186,6 +363,13 @@ pub fn load_q_and_dt_for_period(
         dt_crr_fetching = dt_crr_fetching + Duration::days(1);
     }
 
+    let end = start.elapsed();
+    println!(
+        "{}.{:03}秒経過しました。",
+        end.as_secs(),
+        end.subsec_nanos() / 1_000_000
+    );
+
     return (dt_all, q_all);
 }
 
@@ -205,12 +389,13 @@ pub async fn fetch_docs_by_datetime(dt: &DateTime<Local>) -> Result<(), Error> {
 
     let path = env::current_dir()?;
     std::fs::create_dir_all(format!("{}/jsons", path.display())).unwrap_or_else(|reason| {
-        println!("! {:?}", reason.kind());
+        panic!("! {:?}", reason.kind());
     });
 
     let file_path = filepath::get_json_file_path_by_datetime(dt).unwrap();
     if std::path::Path::new(&file_path).exists() {
         // すでに存在する
+        println!("すでにファイルが存在する");
         return Ok(());
     }
 
