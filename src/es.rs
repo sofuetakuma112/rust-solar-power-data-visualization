@@ -241,8 +241,8 @@ pub fn load_q_and_dt_for_period(
                 .collect::<Vec<Document>>();
         } else {
             // start_dt <= first_dt <= last_dt <= end_dt
-            let first_dt = isoformat_to_dt(&docs[0].source.jptime);
-            let last_dt = isoformat_to_dt(&docs[docs.len() - 1].source.jptime);
+            let first_dt = isoformat_to_dt(&docs.first().unwrap().source.jptime);
+            let last_dt = isoformat_to_dt(&docs.last().unwrap().source.jptime);
             let start_dt = Local
                 .with_ymd_and_hms(first_dt.year(), first_dt.month(), first_dt.day(), 0, 0, 0)
                 .unwrap();
@@ -315,7 +315,7 @@ pub fn load_q_and_dt_for_period(
             docs_from_start_to_first.append(&mut docs);
             docs_from_start_to_first.append(&mut docs_from_last_to_end);
 
-            docs = docs_from_start_to_first;
+            docs = docs_from_start_to_first; // FIXME: メモリ効率悪そうな気がするので直す
 
             println!("doc_to_dt(docs[0]): {}", doc_to_dt(docs.first().unwrap()));
             println!("doc_to_dt(docs[0]): {}", doc_to_dt(docs.last().unwrap()));
@@ -333,7 +333,7 @@ pub fn load_q_and_dt_for_period(
 
         let mut last_dt = Local.with_ymd_and_hms(2400, 1, 1, 0, 0, 0).unwrap();
         if is_first_loop {
-            last_dt = dts_per_day[0]
+            last_dt = *dts_per_day.first().unwrap()
                 + Duration::days(span_int as i64)
                 + Duration::hours((span_float * 24.0) as i64);
             is_first_loop = false;
