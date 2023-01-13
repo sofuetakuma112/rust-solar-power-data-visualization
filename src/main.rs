@@ -7,17 +7,36 @@ use plotters::prelude::*;
 
 use chrono::offset::{Local, TimeZone};
 
+// use pyo3::prelude::*;
+// use pyo3::types::IntoPyDict;
+
 fn main() {
     let dt_ref = &Local.with_ymd_and_hms(2022, 9, 28, 0, 0, 0).unwrap();
     // es::fetch_docs_by_datetime(dt_ref);
     let (dt_all, q_all) = load_q_and_dt_for_period(dt_ref, 1.0);
 
-    let calced_q = q::calc_q(&Local.with_ymd_and_hms(2022, 5, 17, 17, 53, 0).unwrap(), 33.82794, 132.75093);
+    let calced_q = q::calc_q(
+        &Local.with_ymd_and_hms(2022, 5, 17, 17, 53, 0).unwrap(),
+        33.82794,
+        132.75093,
+    );
     println!("calced_q: {}", calced_q);
-    let calced_q = q::calc_q_kw(&Local.with_ymd_and_hms(2022, 5, 17, 17, 53, 0).unwrap(), 33.82794, 132.75093);
+    let calced_q = q::calc_q_kw(
+        &Local.with_ymd_and_hms(2022, 5, 17, 17, 53, 0).unwrap(),
+        33.82794,
+        132.75093,
+    );
     println!("calced_q: {}", calced_q);
-    let calced_q = q::calc_q_kw(&Local.with_ymd_and_hms(2022, 5, 17, 0, 0, 0).unwrap(), 33.82794, 132.75093);
+    let calced_q = q::calc_q_kw(
+        &Local.with_ymd_and_hms(2022, 5, 17, 0, 0, 0).unwrap(),
+        33.82794,
+        132.75093,
+    );
     println!("calced_q: {}", calced_q);
+
+    // Python::with_gil(|py| {
+    //     let np = py.import("numpy").unwrap();
+    // });
 
     /* (1) 描画先の情報を設定 */
     let image_width = 1080;
