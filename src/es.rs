@@ -17,7 +17,9 @@ use dotenv::dotenv;
 
 use crate::filepath;
 
-#[derive(Serialize, Deserialize, Debug)]
+// use nalgebra::Vector3;
+
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct Document {
     #[serde(rename = "_id")]
     id: String,
@@ -31,7 +33,7 @@ struct Document {
     r#type: String,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Default)]
 struct DocumentSource {
     #[serde(rename = "JPtime")]
     jptime: String,
@@ -108,7 +110,7 @@ struct DocumentSource {
     utctime: String,
 }
 
-const ISO_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S.%f";
+const ISO_DATE_FORMAT: &str = "%Y-%m-%dT%H:%M:%S%.f";
 
 fn isoformat_to_dt(dt_str: &str) -> DateTime<chrono::Local> {
     let dt: NaiveDateTime = NaiveDateTime::parse_from_str(dt_str, ISO_DATE_FORMAT).unwrap();
@@ -117,50 +119,12 @@ fn isoformat_to_dt(dt_str: &str) -> DateTime<chrono::Local> {
 
 fn create_doc(dt: DateTime<Local>, q: f64) -> Document {
     Document {
-        id: String::from(""),
-        index: String::from(""),
-        score: 0.0,
         source: DocumentSource {
             jptime: dt.format(ISO_DATE_FORMAT).to_string(),
             solar_irradiance: q,
-            // 以下初期値
-            no_0: String::from(""),
-            no_1: String::from(""),
-            no_2: String::from(""),
-            no_3: String::from(""),
-            no_4: String::from(""),
-            no_5: String::from(""),
-            no_6: String::from(""),
-            no_7: String::from(""),
-            no_16: String::from(""),
-            no_18: String::from(""),
-            no_20: String::from(""),
-            no_21: String::from(""),
-            no_25: String::from(""),
-            no_26: String::from(""),
-            no_30: String::from(""),
-            no_31: String::from(""),
-            no_32: String::from(""),
-            ac_i: 0.0,
-            ac_pw: 0.0,
-            ac_v: 0.0,
-            air_temperature: 0.0,
-            co2_reduction: 0.0,
-            dc_i: 0.0,
-            dc_pw: 0.0,
-            dc_v: 0.0,
-            frequency: 0.0,
-            oil_conversion_amount: 0.0,
-            remaining_storage_battery_capacity: 0.0,
-            single_unit_integrated_power_generation: 0.0,
-            solar_cell_current: 0.0,
-            solar_cell_power: 0.0,
-            solar_cell_voltage: 0.0,
-            total_ac_power: 0.0,
-            total_unit_integrated_power_generation: 0.0,
-            utctime: String::from(""),
+            ..Default::default()
         },
-        r#type: String::from(""),
+        ..Default::default()
     }
 }
 
@@ -184,7 +148,7 @@ pub fn load_q_and_dt_for_period(
 
     let mut is_first_loop = true;
 
-    for _ in 0..(span.ceil() as i64) {
+    'loop_by_day: for _ in 0..(span.ceil() as i64) {
         // 対象の日時のJSONファイルがなければ取得する
         fetch_docs_by_datetime(&dt_crr_fetching).unwrap();
 
@@ -194,9 +158,7 @@ pub fn load_q_and_dt_for_period(
         }
 
         let json_str = std::fs::read_to_string(file_path).unwrap();
-
         let mut docs = serde_json::from_str::<Vec<Document>>(&json_str).unwrap();
-
         println!("docs.len(): {}", docs.len());
 
         // JPtimeの昇順にソート
@@ -330,6 +292,7 @@ pub fn load_q_and_dt_for_period(
             .iter()
             .map(|doc| isoformat_to_dt(&doc.source.jptime))
             .collect::<Vec<DateTime<chrono::Local>>>();
+        // let mut dts_per_day = Vector3::from_vec(dts_per_day);
 
         let mut last_dt = Local.with_ymd_and_hms(2400, 1, 1, 0, 0, 0).unwrap();
         if is_first_loop {
@@ -343,27 +306,25 @@ pub fn load_q_and_dt_for_period(
             .map(|doc| doc.source.solar_irradiance)
             .collect::<Vec<f64>>();
 
-        let mut has_reached_end = false;
         for dt in dts_per_day.iter() {
             if *dt > last_dt {
-                has_reached_end = true;
+                // 取得しようとしている期間の末尾の日時に到達した
+
+                // last_dt以下だけ抽出し、dt_all, q_allにマージしてループから抜ける
+                let mask = dts_per_day
+                    .iter()
+                    .map(|dt| *dt <= last_dt)
+                    .collect::<Vec<bool>>();
+
+                let mut mask_iter = mask.iter();
+                dts_per_day.retain(|_| *mask_iter.next().unwrap());
+                let mut mask_iter = mask.iter();
+                qs_per_day.retain(|_| *mask_iter.next().unwrap());
+
+                dt_all.append(&mut dts_per_day);
+                q_all.append(&mut qs_per_day);
+                break 'loop_by_day;
             }
-        }
-        if has_reached_end {
-            // last_dt以下だけ抽出してdt_all, q_allにマージする
-            let mask = dts_per_day
-                .iter()
-                .map(|dt| *dt <= last_dt)
-                .collect::<Vec<bool>>();
-
-            let mut mask_iter = mask.iter();
-            dts_per_day.retain(|_| *mask_iter.next().unwrap());
-            let mut mask_iter = mask.iter();
-            qs_per_day.retain(|_| *mask_iter.next().unwrap());
-
-            dt_all.append(&mut dts_per_day);
-            q_all.append(&mut qs_per_day);
-            break;
         }
 
         dt_all.append(&mut dts_per_day);
